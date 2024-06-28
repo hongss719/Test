@@ -1,0 +1,1565 @@
+<template>
+  <div id="TemplateExportDialog" class="content">
+    <flux-label :width="width" :height="height" />
+
+    <div class="custom-attribute-list">
+      <div class="flex-box1" style="display: block">
+        <div>
+          <div v-for="(item, index) in processItemList" :key="item.index">
+            <div class="container">
+              <div>
+                <div v-if="index > 0" :class="getProcessItemLineClass(item)"></div>
+                <div @click="selectProcessItem(item)" :class="getProcessItemClass(item)">{{ item.index }}</div>
+                <span @click="selectProcessItem(item)" :class="getProcessItemLabelClass(item)">{{ item.label }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- <div class="flex-box1" style="display: none;">
+        <flux-accordion-menu
+          :width="256"
+          :items="JSON.stringify(sideMenuItems)"
+          @input="(v) => selectSideMenu(v.detail[0].item)" />
+      </div> -->
+      <div class="custom-attribute-box flex-box2">
+        <div id="item-list" class="item-list">
+          <div class="item-label">
+            {{ $t('exportTemp.message.workspace') }}
+          </div>
+          <div>
+            <div>
+              <flux-search-field
+                select-on-focus="false"
+                dark-background="false"
+                :disabled="JSON.stringify(disabled)"
+                :searching="JSON.stringify(searching)"
+                width="330"
+                :placeholder="placeholderValue"
+                :value="searchItemString"
+                @ui-search-start-event="startSearch()"
+                @ui-search-stop-event="stopSearch()"
+                @input="(v) => (searchItemString = v.detail[0])"
+              />
+            </div>
+          </div>
+          <div class="move-top2 custom-attribute-box-scroll-l">
+            <flux-table
+              :loading="JSON.stringify(loading)"
+              :lang="$i18n.locale"
+              selectable="true"
+              width="327"
+              max-height="402"
+              selection-mode="multiple"
+              required="false"
+              :fields="JSON.stringify(centerFields)"
+              :items="JSON.stringify(sourceDisplayList)"
+              column-resizable="false"
+              @flux-table-selected-event="(v) => sourceSelectHandler(v.detail[0])"
+            >
+              <span
+                v-for="(item, row) in sourceDisplayList"
+                :key="item.key"
+                :slot="fields[1].key + '-' + row"
+                :title="item.label"
+                class="text-overflow"
+              >
+                <template>
+                  {{ item.label }}
+                </template>
+              </span>
+            </flux-table>
+          </div>
+        </div>
+        <div class="custom-footer-buttons">
+          <flux-button
+            id="backTo"
+            :label="$t('exportTemp.back')"
+            width="120"
+            style="margin-right: 8px; display: none"
+            @click="backTo"
+          />
+          <flux-button
+            id="nextTo"
+            :label="$t('exportTemp.next')"
+            width="120"
+            style="margin-right: 8px"
+            @click="nextTo"
+          />
+        </div>
+      </div>
+
+      <!-- <div class="custom-attribute-box custom-attribute-box-right flex-box3" style="display: none;">
+        <div class="attribute-title2">{{ $t('exportTemp.dialog.selectedAttributes') }}</div>
+        <div class="custom-attribute-box-table custom-attribute-box-scroll-r">
+          <div
+            v-for="type in sideMenuTypes" 
+            :key="type">
+            <flux-table
+              v-if="candidateListHasValue[type]"
+              :loading="JSON.stringify(loading)"
+              selectable="true"
+              :lang="$i18n.locale"
+              max-height="402"
+              selection-mode="multiple"
+              required="false"
+              :fields="JSON.stringify(getRightFields(type))"
+              :items="JSON.stringify(candidateListByTypes[type])"
+              column-resizable="false"
+              @flux-table-selected-event="(v) => candidateSelectHandler(v.detail[0], type)">
+              <span
+                v-for="(item, row) in candidateListByTypes[type]"
+                :key="item.key"
+                :slot="fields[1].key + '-' + row"
+                :title="item.label"
+                class="text-overflow">
+                <span>{{ item.label }}</span>
+              </span>
+            </flux-table>
+          </div>
+        </div>
+        <div class="custom-footer-buttons">
+          <flux-button
+            :label="$t('exportTemp.dialog.ok')"
+            width="120"
+            style="margin-right:8px;"
+            :disabled="JSON.stringify(exportDisabled)"
+            @click="startExport" />
+        </div>
+      </div> -->
+
+      <div class="custom-attribute-box custom-attribute-box-right flex-box3" style="display: block">
+        <div class="attribute-title2">{{ $t('exportTemp.dialog.selectedAttributes') }}</div>
+
+        <div v-for="(node, key) in displayChoosedNodeMap" :key="key">
+          <pre>
+          {{ node.label }}
+          </pre>
+          <pre v-for="item in node.itemList" :key="item.id">
+            --{{ item.label }}
+          </pre>
+        </div>
+
+        <div class="custom-attribute-box-table custom-attribute-box-scroll-r">
+          <div v-for="type in sideMenuTypes" :key="type">
+            <table
+              v-if="candidateListHasValue[type]"
+              :loading="JSON.stringify(loading)"
+              selectable="true"
+              :lang="$i18n.locale"
+              max-height="402"
+              selection-mode="multiple"
+              required="false"
+              :fields="JSON.stringify(getRightFields(type))"
+              :items="JSON.stringify(candidateListByTypes[type])"
+              column-resizable="false"
+              @flux-table-selected-event="(v) => candidateSelectHandler(v.detail[0], type)"
+            >
+              <thead>
+                <tr v-for="(field, index) in getRightFields(type)" :key="index">
+                  <th>
+                    <span class="title-align">{{ field.label }}</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(item, row) in candidateListByTypes[type]"
+                  style="height: 20px"
+                  :key="item.key"
+                  :slot="fields[1].key + '-' + row"
+                  :title="item.label"
+                >
+                  <td class="show-List-checkbox" style="display: flex">
+                    <!-- // <flux-checkbox disabled="false" value="true"/>-->
+                    <span class="span-class">{{ item.label }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <!-- <table>
+            <thead>
+              <tr>
+                <th >ルール</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in 3" :key="row" style="height: 20px;">
+                <td class="show-List-checkbox">
+                <flux-checkbox label="ラベル" disabled="false" value="true"/></td>
+              </tr>
+            </tbody>
+          </table>-->
+          </div>
+        </div>
+        <div class="custom-footer-buttons">
+          <flux-button
+            :label="$t('exportTemp.dialog.ok')"
+            width="120"
+            style="margin-right: 8px"
+            :disabled="JSON.stringify(exportDisabled)"
+            @click="startExport"
+          />
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+import { mapActions } from 'vuex'
+import i18n from '../modules/i18n'
+import pluginOperateUtils from '../modules/pluginOperateUtils'
+import utils from '../modules/utils'
+import { Component, Prop, Vue, Watch } from 'vue-property-decorator'
+
+interface FieldType {
+  key: string
+  label?: string
+  tooltip?: string
+  sortable?: boolean
+  'width-percentage'?: string
+  'min-width'?: string
+}
+interface ItemType {
+  id: string
+  key: string
+  label: string
+  description: string
+  type: string
+  selected: boolean
+}
+interface UserMenuItem {
+  label: string
+  value?: { menu: string; item: string }
+  tooltip?: string
+}
+interface SideMenuItem {
+  menus: UserMenuItem[]
+}
+interface ReqBody {
+  workspace: workspaceReqBody
+  automation: any
+  dms: any
+}
+interface workspaceReqBody {
+  workspaceIds: Array<number>
+  trayIds: Array<number>
+  'custom-attribute-keys': Array<number>
+  'custom-attribute-key-groups': Array<number>
+}
+
+interface ProcessItemType {
+  index: string
+  label: string
+  type: string
+  selected: boolean
+  before: boolean
+}
+
+interface DisplayChoosedNode {
+  id: string
+  key: string
+  label: string
+  itemList: Array<DisplayChoosedNodeItem>
+}
+interface DisplayChoosedNodeItem {
+  id: string
+  label: string
+}
+
+enum MenuType { // eslint-disable-line no-unused-vars,@typescript-eslint/no-unused-vars
+  /**
+   * ワークスペース
+   */
+  WORKSPACE = 'workspace', // eslint-disable-line no-unused-vars
+  /**
+   * トレイ
+   */
+  TRAY = 'tray', // eslint-disable-line no-unused-vars
+  /**
+   * 属性
+   */
+  ATTRIBUTE = 'attribute', // eslint-disable-line no-unused-vars
+  /**
+   * 属性グループ
+   */
+  ATTRIBUTE_GROUP = 'attributeGroup', // eslint-disable-line no-unused-vars
+
+  RULE = 'rule',
+
+  DOCUMENT_MANAGEMENT = 'documentManagement',
+
+  CABINET = 'cabinet',
+}
+@Component({
+  components: {},
+  methods: {
+    ...mapActions({}),
+  },
+})
+export default class ExportTemplate extends Vue {
+  private width = 'auto'
+  private height = 'auto'
+  private sideMenuTypes = [
+    MenuType.WORKSPACE,
+    MenuType.TRAY,
+    MenuType.ATTRIBUTE,
+    MenuType.ATTRIBUTE_GROUP,
+    MenuType.RULE,
+    MenuType.CABINET,
+  ]
+  private sideMenuItems = [
+    {
+      menus: [
+        {
+          label: i18n.t('exportTemp.menu.workspace') as string,
+          value: { menu: 'side', item: MenuType.WORKSPACE },
+          tooltip: i18n.t('exportTemp.menu.workspace') as string,
+        },
+        {
+          label: i18n.t('exportTemp.menu.tray') as string,
+          value: { menu: 'side', item: MenuType.TRAY },
+          tooltip: i18n.t('exportTemp.menu.tray') as string,
+        },
+        {
+          label: i18n.t('exportTemp.menu.attribute') as string,
+          value: { menu: 'side', item: MenuType.ATTRIBUTE },
+          tooltip: i18n.t('exportTemp.menu.attribute') as string,
+        },
+        {
+          label: i18n.t('exportTemp.menu.attributeGroup') as string,
+          value: { menu: 'side', item: MenuType.ATTRIBUTE_GROUP },
+          tooltip: i18n.t('exportTemp.menu.attributeGroup') as string,
+        },
+        {
+          label: i18n.t('exportTemp.menu.ruleSetting') as string,
+          value: { menu: 'side', item: MenuType.RULE },
+          tooltip: i18n.t('exportTemp.menu.ruleSetting') as string,
+        },
+        {
+          label: i18n.t('exportTemp.menu.documentManagement') as string,
+          value: { menu: 'side', item: MenuType.DOCUMENT_MANAGEMENT },
+          tooltip: i18n.t('exportTemp.menu.documentManagement') as string,
+        },
+      ],
+    },
+  ]
+  private selectedSideMenuItem = ''
+  private candidateList = []
+  private sourceDisplayList: Array<ItemType> = []
+  private sourceList: Array<ItemType> = []
+  private searchItemString = ''
+  private loading = true
+  private disabled = true
+  private cancelDisabled = false
+  private exportDisabled = true
+  private searching = false
+  private chooseDesktopApplication = false
+  private placeholderValue = ''
+  // private leftArrowDisabled = 'true'
+  // private rightArrowDisabled = 'true'
+  // private compareList = []
+
+  // private sideMenuItems: SideMenuItem[] = []
+  // private userMenuItems: UserMenuItem[] = []
+  // private circles = ['2','3','4','5','6','7','8']
+  private processItemList: Array<ProcessItemType> = [
+    {
+      index: '1',
+      label: this.$t('exportTemp.processItem.rule') as string,
+      type: MenuType.RULE,
+      selected: true,
+      before: false,
+    },
+    {
+      index: '2',
+      label: this.$t('exportTemp.processItem.documentManagement') as string,
+      type: MenuType.DOCUMENT_MANAGEMENT,
+      selected: false,
+      before: false,
+    },
+    {
+      index: '3',
+      label: this.$t('exportTemp.processItem.workspace') as string,
+      type: MenuType.WORKSPACE,
+      selected: false,
+      before: false,
+    },
+    {
+      index: '4',
+      label: this.$t('exportTemp.processItem.attribute') as string,
+      type: MenuType.TRAY,
+      selected: false,
+      before: false,
+    },
+    {
+      index: '5',
+      label: this.$t('exportTemp.processItem.attribute') as string,
+      type: MenuType.ATTRIBUTE,
+      selected: false,
+      before: false,
+    },
+    {
+      index: '6',
+      label: this.$t('exportTemp.processItem.cabinet') as string,
+      type: MenuType.CABINET,
+      selected: false,
+      before: false,
+    },
+  ]
+  private userLocale = i18n.locale
+  private radioSelection = '01'
+
+  @Prop()
+  private repositoryId
+  private loginUserId = '4887b558-3383-44d3-b1eb-29a52c5f87b8'
+
+  private radioItemsForChoose = [
+    { label: this.$t('exportTemp.radioItems.on'), value: '01', disabled: false },
+    { label: this.$t('exportTemp.radioItems.off'), value: '02', disabled: false },
+  ]
+
+  get fields(): Array<FieldType> {
+    return [
+      { key: 'selector', 'width-percentage': '10', 'min-width': '30' },
+      { key: 'name', label: i18n.t('exportTemp.nameLabel') as string, 'width-percentage': '90', 'min-width': '220' },
+    ]
+  }
+
+  get centerFields(): Array<FieldType> {
+    if (!this.selectedSideMenuItem) {
+      return []
+    }
+    const fieldName = i18n.t('exportTemp.itemName')[this.selectedSideMenuItem]
+    const description = i18n.t('exportTemp.description')[this.selectedSideMenuItem]
+    if (!fieldName) {
+      return []
+    }
+    if (fieldName === '属性名') {
+      return [
+        { key: 'selector', 'width-percentage': '10', 'min-width': '30' },
+        { key: 'name', label: fieldName as string, 'width-percentage': '30', 'min-width': '220' },
+        { key: 'description', label: description as string, 'width-percentage': '30', 'min-width': '220' },
+        { key: 'description2', label: description as string, 'width-percentage': '30', 'min-width': '220' },
+      ]
+    } else {
+      return [
+        { key: 'selector', 'width-percentage': '10', 'min-width': '30' },
+        { key: 'name', label: fieldName as string, 'width-percentage': '45', 'min-width': '220' },
+        { key: 'description', label: description as string, 'width-percentage': '45', 'min-width': '220' },
+      ]
+    }
+  }
+
+  private displayChoosedNodeMap = {}
+  addDisplayChoosedNodeItemList(node: DisplayChoosedNode) {
+    const existsNode = this.displayChoosedNodeMap[node.key]
+    console.log('node->', node)
+    console.log('displayChoosedNodeMap->', this.displayChoosedNodeMap)
+    if (!existsNode) {
+      this.displayChoosedNodeMap[node.key] = node
+      return
+    }
+    if (existsNode.itemList === null) {
+      existsNode.itemList = []
+    }
+
+    node.itemList.forEach((item) => {
+      if (existsNode.itemList.filter((existsItem) => existsItem.id === item.id).length < 0) {
+        existsNode.itemList.push(item)
+      }
+    })
+  }
+
+  delDisplayChoosedNodeItemList(node: DisplayChoosedNode) {
+    const existsNode = this.displayChoosedNodeMap[node.key]
+    if (!existsNode) {
+      return
+    }
+    existsNode.itemList = existsNode.itemList.filter((existsItem) => {
+      let filteredItemList = node.itemList.filter((item) => item.id === existsItem.id)
+      return filteredItemList.length === 0
+    })
+    if (existsNode.itemList.length == 0) {
+      delete this.displayChoosedNodeMap[node.key]
+    }
+  }
+
+  getProcessItemClass(item: ProcessItemType): string {
+    if (item.selected) {
+      return 'selected-process-item'
+    }
+    if (item.before) {
+      return 'before-process-item'
+    }
+    return 'process-item'
+  }
+  getProcessItemLineClass(item: ProcessItemType): string {
+    if (item.selected) {
+      return 'selected-process-item-line'
+    }
+    if (item.before) {
+      return 'before-process-item-line'
+    }
+    return 'process-item-line'
+  }
+  getProcessItemLabelClass(item: ProcessItemType): string {
+    if (item.selected) {
+      return 'selected-process-item-label'
+    }
+    if (item.before) {
+      return 'before-process-item-label'
+    }
+    return 'process-item-label'
+  }
+  selectProcessItem(item: ProcessItemType): void {
+    this.processItemList.forEach((e) => {
+      if (e.index === item.index) {
+        e.selected = true
+        e.before = false
+      } else if (e.index > item.index) {
+        e.selected = false
+        e.before = false
+      } else if (e.index < item.index) {
+        e.selected = false
+        e.before = true
+      }
+    })
+  }
+
+  getRightFields(type: any): Array<FieldType> {
+    if (!type) {
+      return []
+    }
+    const fieldName = i18n.t('exportTemp.menu')[type]
+    if (!fieldName) {
+      return []
+    }
+    return [
+      { key: 'selector', 'width-percentage': '10', 'min-width': '30' },
+      { key: 'name', label: fieldName as string, 'width-percentage': '90', 'min-width': '220' },
+    ]
+  }
+
+  get workSpaceCandidateList(): Array<ItemType> {
+    return this.candidateList.filter((item) => item.type === MenuType.WORKSPACE)
+  }
+
+  get trayCandidateList(): Array<ItemType> {
+    return this.candidateList.filter((item) => item.type === MenuType.TRAY)
+  }
+
+  get attributeCandidateList(): Array<ItemType> {
+    return this.candidateList.filter((item) => item.type === MenuType.ATTRIBUTE)
+  }
+
+  get attributeGroupCandidateList(): Array<ItemType> {
+    return this.candidateList.filter((item) => item.type === MenuType.ATTRIBUTE_GROUP)
+  }
+
+  get ruleSettingCandidateList(): Array<ItemType> {
+    return this.candidateList.filter((item) => item.type === MenuType.RULE)
+  }
+
+  get documentManagementCandidateList(): Array<ItemType> {
+    return this.candidateList.filter((item) => item.type === MenuType.RULE)
+  }
+  arrayNotEmpty(list: Array<ItemType>): Boolean {
+    return list && list.length > 0
+  }
+  get candidateListHasValue(): { [key in MenuType]?: Boolean } {
+    return {
+      [MenuType.WORKSPACE]: this.arrayNotEmpty(this.workSpaceCandidateList),
+      [MenuType.TRAY]: this.arrayNotEmpty(this.trayCandidateList),
+      [MenuType.ATTRIBUTE]: this.arrayNotEmpty(this.attributeCandidateList),
+      [MenuType.ATTRIBUTE_GROUP]: this.arrayNotEmpty(this.attributeGroupCandidateList),
+      [MenuType.RULE]: this.arrayNotEmpty(this.ruleSettingCandidateList),
+      [MenuType.DOCUMENT_MANAGEMENT]: this.arrayNotEmpty(this.documentManagementCandidateList),
+    }
+  }
+  get candidateListByTypes(): { [key in MenuType]?: Array<ItemType> } {
+    return {
+      [MenuType.WORKSPACE]: this.workSpaceCandidateList,
+      [MenuType.TRAY]: this.trayCandidateList,
+      [MenuType.ATTRIBUTE]: this.attributeCandidateList,
+      [MenuType.ATTRIBUTE_GROUP]: this.attributeGroupCandidateList,
+      [MenuType.RULE]: this.ruleSettingCandidateList,
+      [MenuType.DOCUMENT_MANAGEMENT]: this.documentManagementCandidateList,
+    }
+  }
+
+  initializeResorce(): void {
+    // this.userMenuItems = this.getUserMenuItems();
+    // this.sideMenuItems = this.getSideMenuItems()
+    // const params = {
+    //   language: this.userLocale,
+    //   repositoryId: this.repositoryId,
+    // }
+  }
+
+  async mounted(): Promise<void> {
+    // TEST
+    this.test()
+
+    this.selectedSideMenuItem = MenuType.RULE
+    this.placeholderValue = i18n.t('exportTemp.searchName')[this.selectedSideMenuItem]
+    await this.getSourceTableList()
+    window.addEventListener('dwcl-sock-job', this.getExportStatus)
+  }
+
+  test() {
+    let nodeA: DisplayChoosedNode = {
+      id: 'a',
+      key: 'a',
+      label: 'a',
+      itemList: [
+        {
+          id: 'aa',
+          label: 'aa',
+        },
+        {
+          id: 'bb',
+          label: 'bb',
+        },
+      ],
+    }
+    this.addDisplayChoosedNodeItemList(nodeA)
+
+    let nodeX: DisplayChoosedNode = {
+      id: 'x',
+      key: 'x',
+      label: 'x',
+      itemList: [
+        {
+          id: 'xx',
+          label: 'xx',
+        },
+        {
+          id: 'yy',
+          label: 'yy',
+        },
+      ],
+    }
+    this.addDisplayChoosedNodeItemList(nodeA)
+    this.addDisplayChoosedNodeItemList(nodeX)
+
+    let nodeZ: DisplayChoosedNode = {
+      id: 'z',
+      key: 'z',
+      label: 'z',
+      itemList: [
+        {
+          id: 'zz',
+          label: 'zz',
+        },
+      ],
+    }
+    this.addDisplayChoosedNodeItemList(nodeZ)
+    console.log(this.displayChoosedNodeMap)
+  }
+
+  getExportStatus(element: any) {
+    if (element == null || element.detail == null) {
+      return
+    }
+    let detail = JSON.parse(element.detail)
+    if (detail.type === 'exportTemplate') {
+      const url = detail.values.signedUrl
+      this.downloadFile(url)
+      this.exportDisabled = false
+    }
+  }
+
+  downloadFile(url) {
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', '')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  destroyed() {
+    window.removeEventListener('dwcl-sock-job', this.getExportStatus)
+  }
+
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
+  candidateSelectHandler(detail: any[], type: string): void {
+    this.candidateListByTypes[type].forEach((item: ItemType) => {
+      const selectedItem = detail.find((selectItem) => item.id === selectItem.id && item.type === selectItem.type)
+      if (!selectedItem) {
+        this.onItemUnselected(item)
+        if (item.type === this.selectedSideMenuItem) {
+          const sourceItem = this.sourceList.find((o) => o.id === item.id)
+          if (sourceItem) {
+            sourceItem.selected = false
+          }
+        }
+      }
+    })
+  }
+
+  // // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
+  // moveDisabledHandler(value: any):void{
+  //   if (value.length > 0) {
+  //     this.leftArrowDisabled = 'false'
+  //   } else if (value.length === 0) {
+  //     this.leftArrowDisabled = 'true'
+  //   }
+  // }
+
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types, @typescript-eslint/no-explicit-any
+  sourceSelectHandler(detail: any[]): void {
+    this.sourceDisplayList.forEach((item: ItemType) => {
+      const selectedItem = detail.find((selectItem) => item.id === selectItem.id)
+      if (selectedItem) {
+        if (!item.selected) {
+          this.onItemSelected(item)
+        }
+        item.selected = selectedItem.selected
+      } else {
+        if (item.selected) {
+          this.onItemUnselected(item)
+        }
+        item.selected = false
+      }
+    })
+  }
+
+  onItemSelected(item: ItemType): void {
+    //console.log('item selected:', item.id, ', name:', item.label)
+    if (!this.candidateList.find((o) => o.id === item.id && o.type === item.type)) {
+      this.candidateList.push(item)
+      if (this.candidateList.length > 0) {
+        this.exportDisabled = false
+      }
+    }
+  }
+
+  onItemUnselected(item: ItemType): void {
+    //console.log('item unselected:', item.id, ', name:', item.label)
+    this.candidateList = this.candidateList.filter((o) => o.id !== item.id || o.type !== item.type)
+    if (this.candidateList.length === 0) {
+      this.exportDisabled = true
+    }
+  }
+
+  // appendShowAttributeHandler():void {
+  //   this.exportDisabled = false
+  //   this.sourceSelectedList.forEach((item) => {
+  //     let objIndex = this.exportList.findIndex((f) => f.id === item.id)
+  //     if (objIndex > -1) {
+  //       item.selected = false
+  //       this.exportList.splice(objIndex, 1)
+  //       this.sourceDisplayList.push(item)
+  //       // テンポラリー・リスト同期追加
+  //       this.sourceList.push(item)
+  //     }
+  //   })
+  //   this.sourceSelectedList = []
+  // }
+
+  // appendDisAttributeHandler():void {
+  //   this.exportDisabled = false
+
+  //   this.disSelectorList.forEach((item) => {
+  //     let objIndex = this.sourceDisplayList.findIndex((f) => f.id === item.id)
+  //     if (objIndex > -1) {
+  //       item.selected = false
+  //       this.sourceDisplayList.splice(objIndex, 1)
+  //       this.exportList.push(item)
+
+  //       // テンポラリー・リスト同期削除
+  //       const _index = this.sourceList.findIndex((temp: { id: string }) => temp.id === item.id)
+  //       this.sourceList.splice(_index, 1)
+  //     }
+  //   })
+  //   this.disSelectorList = []
+  // }
+
+  startSearch(): void {
+    this.searching = true
+    if (this.searchItemString) {
+      if (this.sourceList && this.sourceList.length > 0) {
+        const searchKeyword = this.searchItemString.toLowerCase()
+        // if (shuxing) {
+        this.sourceDisplayList = this.sourceList.filter((item) => item.label.toLowerCase().includes(searchKeyword))
+        // }
+        // esle (works)
+        // if (JSON.stringify(this.compareList) != JSON.stringify(this.sourceDisplayList)) {
+        //   this.disSelectorList = []
+        //   this.compareList = this.sourceDisplayList
+        // }
+      }
+    } else {
+      this.sourceDisplayList = []
+      this.sourceList.forEach((item) => this.sourceDisplayList.push(item))
+    }
+    this.searching = false
+  }
+
+  stopSearch(): void {
+    this.searching = false
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getWorkspaceList(start = 1, max = 20, filter = ''): Promise<any> {
+    const res = await this.$store.dispatch('workspace/getWorkspacesByUserId', {
+      repositoryId: this.repositoryId,
+      userId: this.loginUserId,
+      start,
+      max,
+      filter: filter,
+      sort: 'drawerName.asc',
+    })
+    return res
+  }
+
+  
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getRuleAssociated(flowId): Promise<any> {
+    const res = await this.$store.dispatch('flowList/getFlowAssociated', {
+      repositoryId: this.repositoryId,
+      flowId: flowId,
+    })
+    return res
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getWorkspaceAssociated(workspaceId): Promise<any> {
+    const res = await this.$store.dispatch('workspace/getWorkspaceAssociated', {
+      repositoryId: this.repositoryId,
+      workspaceId: workspaceId,
+    })
+    return res
+  }
+
+
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getRuleList(filter = ''): Promise<any> {
+    const res = await this.$store.dispatch('flowList/getFlowList', {
+      repositoryId: this.repositoryId,
+      filter: filter,
+    })
+    return res
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getTrayList(start = 1, max = 10, filter = ''): Promise<any> {
+    const res = await this.$store.dispatch('tray/getTrayList', {
+      repositoryId: this.repositoryId,
+      userId: this.loginUserId,
+      start,
+      max,
+      filter: '',
+      sort: 'drawerName.asc',
+    })
+    return res
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getTrayAssociated(trayId): Promise<any> {
+    const res = await this.$store.dispatch('tray/getTrayAssociated', {
+      repositoryId: this.repositoryId,
+      trayId: trayId,
+    })
+    return res
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getAttributeGroupList(): Promise<any> {
+    const res = await this.$store.dispatch('attribute/getAttributeKeyGroups', {
+      repositoryId: this.repositoryId,
+      filter: '',
+    })
+    return res
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getAttributeList(): Promise<any> {
+    const res = await this.$store.dispatch('attribute/getAttributeList', {
+      repositoryId: this.repositoryId,
+      filter: '',
+    })
+    return res
+  }
+
+  async getSourceTableList(): Promise<void> {
+    this.loading = true
+    this.disabled = true
+    this.sourceList = []
+    this.sourceDisplayList = []
+    switch (this.selectedSideMenuItem) {
+      case MenuType.RULE:
+        {
+          // const res = await this.getWorkspaceList(searchKey)
+          const res = await this.getRuleList()
+          res.flowList?.forEach((item) => {
+            const params: ItemType = {
+              id: item.flowId,
+              key: `${MenuType.RULE}_${item.flowId}`,
+              description: item.flowDescription,
+              label: item.name,
+              type: MenuType.RULE,
+              selected: !!this.candidateList.find((o) => o.id === item.flowId && o.type === MenuType.RULE),
+            }
+            this.sourceList.push(params)
+            // this.addDisplayChoosedNodeItemList(res.flowList)
+          })
+        }
+        break
+      // case MenuType.DOCUMENT_MANAGEMENT:
+      // {
+      //   const res = await this.getDocumentManagementList()
+      //   res.flowList?.forEach((item) => {
+      //     const params: ItemType = {
+      //       id: item.ruleId,
+      //       key: `${MenuType.RULE}_${item.ruleId}`,
+      //       label: item.ruleName,
+      //       type: MenuType.RULE,
+      //       selected: !!this.candidateList.find(o => o.id === item.ruleId && o.type === MenuType.RULE),
+      //     }
+      //     this.sourceList.push(params)
+      //     console.log("sourceList",this.sourceList)
+      //   })
+      // }
+      // break
+
+      case MenuType.WORKSPACE:
+        {
+          // const res = await this.getWorkspaceList(searchKey)
+          const res = await this.getWorkspaceList()
+          res.workspaces?.forEach((item) => {
+            const params: ItemType = {
+              id: item.drawerId,
+              key: `${MenuType.WORKSPACE}_${item.drawerId}`,
+              label: item.name,
+              description: item.description,
+              type: MenuType.WORKSPACE,
+              selected: !!this.candidateList.find((o) => o.id === item.drawerId && o.type === MenuType.WORKSPACE),
+            }
+            this.sourceList.push(params)
+          })
+        }
+        break
+      case MenuType.TRAY:
+        {
+          const res = await this.getTrayList()
+          res.trayList?.forEach((item) => {
+            const params: ItemType = {
+              id: item.trayId,
+              key: `${MenuType.TRAY}_${item.trayId}`,
+              label: item.trayName,
+              description: item.description,
+              type: MenuType.TRAY,
+              selected: !!this.candidateList.find((o) => o.id === item.trayId && o.type === MenuType.TRAY),
+            }
+            this.sourceList.push(params)
+          })
+        }
+        break
+      case MenuType.ATTRIBUTE:
+        {
+          const res = await this.getAttributeList()
+          res.items?.forEach((item) => {
+            const params: ItemType = {
+              id: item.id,
+              key: `${MenuType.ATTRIBUTE}_${item.id}`,
+              label: item.name,
+              description: item.flowDescription,
+              type: MenuType.ATTRIBUTE,
+              selected: !!this.candidateList.find((o) => o.id === item.id && o.type === MenuType.ATTRIBUTE),
+            }
+            this.sourceList.push(params)
+          })
+        }
+        break
+      case MenuType.ATTRIBUTE_GROUP:
+        {
+          const res = await this.getAttributeGroupList()
+          res.items?.forEach((item) => {
+            const params: ItemType = {
+              id: item.id,
+              key: `${MenuType.ATTRIBUTE_GROUP}_${item.id}`,
+              label: item.name,
+              description: item.flowDescription,
+              type: MenuType.ATTRIBUTE_GROUP,
+              selected: !!this.candidateList.find((o) => o.id === item.id && o.type === MenuType.ATTRIBUTE_GROUP),
+            }
+            this.sourceList.push(params)
+          })
+        }
+        break
+      // case MenuType.CABINET:
+      // {
+      //   const res = await this.getCabinetList()
+      //   res.items?.forEach((item) => {
+      //     const params: ItemType = {
+      //       id: item.id,
+      //       key: `${MenuType.ATTRIBUTE_GROUP}_${item.id}`,
+      //       label: item.name,
+      //       type: MenuType.ATTRIBUTE_GROUP,
+      //       selected: !!this.candidateList.find(o => o.id === item.id && o.type === MenuType.ATTRIBUTE_GROUP),
+      //     }
+      //     this.sourceList.push(params)
+      //   })
+      // }
+      // break
+    }
+    console.log('1013->sourceList->', this.sourceList)
+    this.sourceList.forEach((item) => this.sourceDisplayList.push(item))
+    this.loading = false
+    this.disabled = false
+  }
+
+  nextTo(): void {
+    const backToButton = document.getElementById('backTo')
+    backToButton.style.display = 'inline-block'
+    this.getNextMenuType()
+    // this.selectProcessItem();
+    this.selectSideMenu(this.selectedSideMenuItem)
+    this.placeholderValue = i18n.t('exportTemp.searchName')[this.selectedSideMenuItem]
+    console.log('this.candidateList->', this.candidateList)
+    if (this.candidateList.length > 0) {
+      this.candidateList.forEach((item) => {
+        const itemId = item.id
+        const itemType = item.type
+        this.searchItem(itemId, itemType)
+      })
+    }
+  }
+  
+  
+  convertToNodeList(res: any): Array<DisplayChoosedNode> {
+    console.log("convertToNode",res)
+    let nodeList: Array<DisplayChoosedNode> = []
+    let customGroups = res.customGroups
+    let customAttributes = res.customAttributes
+    console.log('customGroups',customGroups,'customAttributes',customAttributes)
+
+    let customGroupNode: DisplayChoosedNode = {
+      id: '1',
+      key: 'customGroup',
+      label: '属性组',
+      itemList: [],
+    }
+
+    let attrNode: DisplayChoosedNode = {
+      id: '2',
+      key: 'attr',
+      label: '属性',
+      itemList: [],
+    }
+
+    if (customGroups) {
+      customGroups.forEach((group) => {
+        customGroupNode.itemList.push({
+          id: group.id,
+          label: group.name
+        });
+        if (group.items) {
+          group.items.forEach((item) => {
+            attrNode.itemList.push({
+              id: item.id,
+              label: item.name
+            });
+          });
+        }
+      });
+    }
+
+    if (customAttributes) {
+      customAttributes.forEach((attr) => {
+        attrNode.itemList.push({
+          id: attr.id,
+          label: attr.name
+        });
+      });
+    }
+
+    nodeList.push(customGroupNode)
+    nodeList.push(attrNode)
+
+    this.addDisplayChoosedNodeItemList(customGroupNode)
+    this.addDisplayChoosedNodeItemList(attrNode)
+    return nodeList
+  }
+  async searchItem(itemId: string, itemType: string): Promise<void> {
+    //console.log('Found item:', itemId, itemType)
+    switch (itemType) {
+      case MenuType.RULE:
+        {
+          const res = await this.getRuleAssociated(itemId)
+          console.log("itemId", itemId,"geRuleAssociated",res)
+          console.log("nodeList", this.convertToNodeList(res))
+        }
+        break
+      case MenuType.WORKSPACE:
+        {
+          const res = await this.getWorkspaceAssociated(itemId)
+          console.log("getWorkspaceAssociated",res)
+          console.log("nodeList", this.convertToNodeList(res))
+        }
+        break
+      case MenuType.TRAY:
+        {
+          const res = await this.getTrayAssociated(itemId)
+          console.log("itemId", itemId,"geRuleAssociated",res)
+        }
+        break
+    }
+  }
+
+  getNextMenuType(): void {
+    const selectItems = this.processItemList.filter((item) => item.type === this.selectedSideMenuItem)
+    const selectItemsIndex = selectItems.map((item) => Number(item.index))[0]
+    if (selectItemsIndex < 6) {
+      const nextIndex = selectItems.map((item) => Number(item.index) + 1)
+      const nextItemsType = this.processItemList
+        .filter((item) => nextIndex.includes(Number(item.index)))
+        .map((item) => item.type)
+        console.log('nextItemsType[0]->',nextItemsType[0])
+      this.selectedSideMenuItem = nextItemsType[0]
+    } else {
+    }
+  }
+
+  backTo(): void {
+    this.getBeforeMenuType()
+    this.selectSideMenu(this.selectedSideMenuItem)
+    this.placeholderValue = i18n.t('exportTemp.searchName')[this.selectedSideMenuItem]
+  }
+
+  getBeforeMenuType(): void {
+    const selectItems = this.processItemList.filter((item) => item.type === this.selectedSideMenuItem)
+    const selectItemsIndex = selectItems.map((item) => Number(item.index))[0]
+    const nextIndex = selectItems.map((item) => Number(item.index) - 1)
+    const nextItemsType = this.processItemList
+      .filter((item) => nextIndex.includes(Number(item.index)))
+      .map((item) => item.type)
+    this.selectedSideMenuItem = nextItemsType[0]
+    if (this.selectedSideMenuItem === MenuType.RULE) {
+      const backToButton = document.getElementById('backTo')
+      backToButton.style.display = 'none'
+    }
+  }
+
+  async startExport(): Promise<void> {
+    this.searchItemString = ''
+    // this.leftArrowDisabled = true
+    // this.rightArrowDisabled = true
+    // this.cancelDisabled = true
+    this.exportDisabled = true
+
+    try {
+      const reqBody = this.handlePostReqBody()
+      pluginOperateUtils.exportTemplate(this.repositoryId, reqBody.workspace, reqBody.automation, reqBody.dms)
+
+      // this.$emit('openListLoading')
+    } catch (error) {
+      // this.$emit('close')
+      throw error
+    }
+  }
+
+  handlePostReqBody(): ReqBody {
+    return {
+      workspace: {
+        workspaceIds: this.candidateListByTypes[MenuType.WORKSPACE].map((item) => Number(item.id)),
+        trayIds: this.candidateListByTypes[MenuType.TRAY].map((item) => Number(item.id)),
+        'custom-attribute-keys': this.candidateListByTypes[MenuType.ATTRIBUTE].map((item) => Number(item.id)),
+        'custom-attribute-key-groups': this.candidateListByTypes[MenuType.ATTRIBUTE_GROUP].map((item) =>
+          Number(item.id),
+        ),
+      },
+      automation: {},
+      dms: {},
+    }
+  }
+
+  selectSideMenu(value: string): void {
+    switch (value) {
+      case 'rule':
+        // this.selectedSideMenuItem = MenuType.RULE
+        this.getSourceTableList()
+        break
+      case 'documentManagement':
+        this.getSourceTableList()
+        break
+      case 'workspace':
+        this.selectedSideMenuItem = MenuType.WORKSPACE
+        this.getSourceTableList()
+        break
+      case 'tray':
+        this.selectedSideMenuItem = MenuType.TRAY
+        this.getSourceTableList()
+        break
+      case 'attribute':
+        this.selectedSideMenuItem = MenuType.ATTRIBUTE
+        this.getSourceTableList()
+        break
+      case 'attributeGroup':
+        this.selectedSideMenuItem = MenuType.ATTRIBUTE_GROUP
+        this.getSourceTableList()
+        break
+    }
+  }
+}
+</script>
+
+<style scoped>
+.move-top {
+  margin-top: 60px;
+}
+
+.move-top2 {
+  margin-top: 10px;
+}
+.move-top3 {
+  margin-top: 15px;
+}
+.custom-attribute-list {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+}
+.custom-attribute-list .flex-box1 {
+  position: relative;
+  padding-left: 50px;
+  padding-right: 50px;
+  padding-top: 50px;
+  width: 350px;
+  height: auto;
+  background-color: #f5f5f5;
+}
+.custom-attribute-list .flex-box2 {
+  position: relative;
+  padding-left: 50px;
+  padding-right: 50px;
+  width: 800px;
+  height: auto;
+  background-color: rgb(255, 255, 255);
+}
+.custom-attribute-list .flex-box3 {
+  position: relative;
+  padding-left: 50px;
+  padding-right: 10px;
+  width: 500px;
+  height: auto;
+  background-color: #f5f5f5;
+}
+
+.custom-attribute-box {
+  height: 467px;
+}
+.text-overflow {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-color-light-txlp, #0a0a0a);
+  font-family: Yu Gothic UI;
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 20px; /* 125% */
+}
+.custom-attribute-box-left .custom-attribute-error {
+  white-space: nowrap;
+  color: #b32029;
+}
+.custom-attribute-box-left .custom-attribute-error .error-icon {
+  vertical-align: middle;
+}
+.custom-attribute-box-scroll-l {
+  height: 402px;
+  padding-top: 10px;
+  overflow: hidden;
+}
+.custom-attribute-box-scroll-r {
+  height: 402px;
+  /* border: 2px solid #cccccc; */
+  overflow: hidden;
+}
+.custom-attribute-box-center {
+  height: 500px;
+  text-align: center;
+  z-index: 9999;
+}
+.custom-attribute-box-center .custom-btn-replace {
+  margin-top: 200px;
+}
+
+.custom-attribute-box-right .custom-attribute-project-representation {
+  float: right;
+  width: 60px;
+  color: var(--text-color-light-txlp, #0a0a0a);
+  text-align: right;
+  font-family: Yu Gothic UI;
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 20px; /* 125% */
+}
+.custom-attribute-box-right {
+  vertical-align: middle;
+}
+.custom-footer-buttons {
+  position: absolute;
+  bottom: 15px;
+  right: 5px;
+  text-align: right;
+  white-space: nowrap;
+}
+.item-label {
+  display: inline-block;
+  color: var(--text-color-light-txlp, #0a0a0a);
+  font-family: Yu Gothic UI;
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 60px; /* 125% */
+}
+
+.item-title {
+  color: var(--text-color-light-txlp, #0a0a0a);
+  font-family: Yu Gothic UI;
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 80px; /* 125% */
+}
+
+.associated-title {
+  color: var(--text-color-light-txlp, #0a0a0a);
+  font-family: Yu Gothic UI;
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 40px;
+}
+
+.item-tips {
+  display: inline-block;
+  color: var(--text-color-light-txlp, #0a0a0a);
+  font-family: Yu Gothic UI;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 20px; /* 125% */
+}
+.item-input {
+  display: inline-flex;
+}
+.attribute-title {
+  width: 332px;
+  color: var(--text-color-light-txlp, #0a0a0a);
+  font-family: Yu Gothic UI;
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 20px; /* 125% */
+}
+.attribute-title2 {
+  color: var(--text-color-light-txlp, #0a0a0a);
+  font-family: Yu Gothic UI;
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 60px;
+}
+
+.content {
+  background-color: #f5f5f5;
+}
+
+.arrow {
+  width: 50px;
+  height: 50px;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.arrow:before {
+  content: '';
+  width: 0px;
+  height: 0px;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 10px solid #000;
+  position: absolute;
+  top: -20px;
+  left: -10px;
+  transform: rotate(-90deg);
+}
+
+.arrow:first-child:before {
+  display: none;
+}
+
+.step {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.line {
+  width: 2px;
+  height: 30px;
+  /* background-color: #00838d; */
+  background-color: #b4b4b5;
+  transform: translate(14px);
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+}
+
+.ellipse {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #00838d;
+  color: white;
+  text-align: center;
+  line-height: 28px;
+  font-size: 18px;
+  /* transform: translate(1px); */
+}
+.ellipse-after {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  /* background-color: #00838d;
+      color: white; */
+  background-color: #b4b4b5;
+  color: rgb(0, 0, 0);
+  text-align: center;
+  line-height: 28px;
+  font-size: 18px;
+}
+
+.selected-process-item {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #00838d;
+  color: white;
+  text-align: center;
+  line-height: 28px;
+  font-size: 18px;
+  /* transform: translate(1px); */
+}
+
+.before-process-item {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: #00838d;
+  color: white;
+  text-align: center;
+  line-height: 28px;
+  font-size: 18px;
+  /* transform: translate(1px); */
+}
+.process-item {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  /* background-color: #00838d;
+      color: white; */
+  background-color: #b4b4b5;
+  color: rgb(0, 0, 0);
+  text-align: center;
+  line-height: 28px;
+  font-size: 18px;
+}
+
+.selected-process-item-line {
+  width: 2px;
+  height: 30px;
+  /* background-color: #00838d; */
+  background-color: #00838d;
+  transform: translate(14px);
+}
+
+.before-process-item-line {
+  width: 2px;
+  height: 30px;
+  /* background-color: #00838d; */
+  background-color: #00838d;
+  transform: translate(14px);
+}
+
+.process-item-line {
+  width: 2px;
+  height: 30px;
+  /* background-color: #00838d; */
+  background-color: #b4b4b5;
+  transform: translate(14px);
+}
+
+.selected-process-item-label {
+  display: inline-block;
+  margin-left: 10px;
+  color: #00838d;
+}
+
+.before-process-item-label {
+  display: inline-block;
+  margin-left: 10px;
+}
+
+.process-item-label {
+  display: inline-block;
+  margin-left: 10px;
+}
+
+.text {
+  display: inline-block;
+  margin-left: 10px;
+}
+
+table {
+  border-collapse: separate;
+  border-spacing: 5px;
+}
+
+.title-align {
+  font-family: Yu Gothic UI;
+  font-size: 14px;
+  line-height: 20px;
+  text-align: left;
+}
+
+td.show-List-checkbox {
+  display: flex;
+  position: relative;
+  left: 8px;
+}
+
+.span-class {
+  font-family: Yu Gothic UI;
+  font-size: 14px;
+  font-style: normal;
+  line-height: 20px;
+  margin-left: 20px;
+}
+
+td.show-List-checkbox:after {
+  content: '';
+  position: absolute;
+  left: -8px;
+  width: 300px;
+  border-bottom: 1px solid #b4b4b5;
+  margin-top: 20px;
+}
+</style>
